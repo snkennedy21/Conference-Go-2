@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from common.json import ModelEncoder
-from .models import Conference, Location
+from .models import Conference, Location, State
+from django.views.decorators.http import require_http_methods
+import json
 
 
 class LocationListEncoder(ModelEncoder):
@@ -65,12 +67,30 @@ def api_show_conference(request, pk):
 
 
 def api_list_locations(request):
-    locations = Location.objects.all()
-    return JsonResponse(
-        {"locations": locations},
-        encoder=LocationListEncoder,
-        safe=False,
-    )
+    if request.method == "GET":
+        locations = Location.objects.all()
+        return JsonResponse(
+            {"locations": locations},
+            encoder=LocationListEncoder,
+            safe=False,
+        )
+    else:
+        content = json.loads(request.body)
+        print(content)
+
+        try:
+            state = State.objects.get(abbreviation=content["state"])
+            content["state"] = state
+        except State.DoesNotExist:
+            return JsonResponse({"message": "State Does Not Exist"})
+
+        location = Location.objects.create(**content)
+
+        return JsonResponse(
+            location,
+            encoder=LocationDetailEncoder,
+            safe=False,
+        )
 
 
 def api_show_location(request, pk):
