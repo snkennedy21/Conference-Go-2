@@ -66,6 +66,7 @@ def api_show_conference(request, pk):
     )
 
 
+@require_http_methods(["GET", "POST"])
 def api_list_locations(request):
     if request.method == "GET":
         locations = Location.objects.all()
@@ -93,10 +94,35 @@ def api_list_locations(request):
         )
 
 
+@require_http_methods(["GET", "DELETE", "PUT"])
 def api_show_location(request, pk):
-    location = Location.objects.get(id=pk)
-    return JsonResponse(
-        location,
-        encoder=LocationDetailEncoder,
-        safe=False,
-    )
+    if request.method == "GET":
+        location = Location.objects.get(id=pk)
+        return JsonResponse(
+            location,
+            encoder=LocationDetailEncoder,
+            safe=False,
+        )
+    
+    elif request.method == "DELETE":
+        count, _ = Location.objects.filter(id=pk).delete()
+        return JsonResponse({"deleted": count > 0})
+
+    else:
+        content = json.loads(request.body)
+
+        try:
+            state = State.objects.get(abbreviation=content["state"])
+            content["state"] = state
+        except State.DoesNotExist:
+            return JsonResponse({"message": "State Does Not Exist"})
+
+        Location.objects.filter(id=pk).update(**content)
+        location = Location.objects.get(id=pk)
+
+        return JsonResponse(
+            location,
+            encoder=LocationDetailEncoder,
+            safe=False,
+        )
+
